@@ -20,7 +20,7 @@ namespace MultiPlayerDevTools
 	[InitializeOnLoad]
 	public class DevToolsWindow : EditorWindow
 	{
-		private Tabs _editorTab;
+		private Tabs _tab;
 		private Settings _settings;
 		private PlayerGenerator _playerGenerator;
 		
@@ -85,8 +85,11 @@ namespace MultiPlayerDevTools
 		    try
 		    {
 			    _settings = new Settings();
-			    _playerGenerator = new PlayerGenerator();
-			    
+			    _playerGenerator = new PlayerGenerator
+			    {
+				    RepaintWindow = Repaint
+			    };
+
 			    Settings.LoadStates();
 			    _playerGenerator.SetInstanceList();
 		    }
@@ -111,17 +114,17 @@ namespace MultiPlayerDevTools
 		    
 		    _BaseDrawable.StartRow();
 		    
-		    _editorTab = (Tabs) GUILayout.Toolbar ((int) _editorTab, editorTabNames, EditorStyles.toolbarButton);
+		    _tab = (Tabs) GUILayout.Toolbar ((int) _tab, editorTabNames, EditorStyles.toolbarButton);
 		    
 		    _BaseDrawable.EndRow();
 		    
 		    EditorGUILayout.Space();
 		    EditorGUILayout.Space();
 
-		    switch (_editorTab) 
+		    switch (_tab) 
 		    {
 			    case Tabs.PlayerGenerator:
-				    _playerGenerator.Render();
+				    _playerGenerator.Render(position);
 				    break;
 			    case Tabs.NetworkAnalysis:
 				    break;

@@ -3,10 +3,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
 using MultiPlayerDevTools.Drawables;
 using MultiPlayerDevTools.Views;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
 
 namespace MultiPlayerDevTools
@@ -18,7 +21,7 @@ namespace MultiPlayerDevTools
         public Color LaunchBtnColor { get; set; }
         public string RemoveBtnText { get; set; }
         public Color RemoveBtnColor { get; set; }
-
+        
         public static Color AddButtonColor { get; set; }
         public static Color RemoveAllButtonColor { get; set; }
 
@@ -109,6 +112,8 @@ namespace MultiPlayerDevTools
 
         public static bool PlayOnLaunch { get; set; }
         
+        public static float ProgressValue { get; set; }
+        
         private GUIStyle _buttonStyle;
         
         private const string SymLinkedFlagFile = ".__symLinked__";
@@ -116,8 +121,11 @@ namespace MultiPlayerDevTools
 
         private static Dictionary<string, string> _instanceSettingsPaths;
         private Process _process;
+
+        private static Process[] _unityHubProcesses;
         private static bool _isReadyToLaunch;
-        
+        private static Action _repaintWindow;
+
         private EditorInstance(string projectName, int instanceCount, bool onEnable = false)
         {
             try
@@ -166,10 +174,12 @@ namespace MultiPlayerDevTools
         
         public static void Create(object[] args)
         {
-            var projectName = (string) args[0];
-            var instanceCount = (int) args[1];
-            var onEnable = args.Length > 2 && (bool) args[2];
+            _repaintWindow = (Action) args[0];
             
+            var projectName = (string) args[1];
+            var instanceCount = (int) args[2];
+            var onEnable = args.Length > 3 && (bool) args[3];
+
             try
             {
                 Create(projectName, instanceCount, onEnable);
@@ -218,7 +228,7 @@ namespace MultiPlayerDevTools
                !_isReadyToLaunch) return;
             
             Environment.SetEnvironmentVariable("GITHUB_UNITY_DISABLE", "1");
-
+            
             Action executeMethod = Settings.SetInstanceData;
             
             var openProjectCommand = $"{EditorApplication.applicationContentsPath}/MacOS/Unity " +
@@ -226,13 +236,13 @@ namespace MultiPlayerDevTools
                                      $"-executeMethod {typeof(Settings)}.{executeMethod.Method.Name}";
             
             ExecuteCommand(openProjectCommand, true);
+            IsSelected = true;
         }
         
         public void ValidateSingleLaunch()
         {
             _isReadyToLaunch = true;
-            FoldOut = false;
-                
+
             Notifications.Clear();
 
             if (InstanceSettings.HasDeviceSelected) return;
@@ -252,9 +262,9 @@ namespace MultiPlayerDevTools
         {
             var nonlaunchableInstances = InstanceList.Select(instance => 
             {
-                _isReadyToLaunch = true;
                 instance.FoldOut = false;
-                
+                _isReadyToLaunch = true;
+
                 instance.Notifications.Clear();
 
                 if (instance.IsSelected && !instance.InstanceSettings.HasDeviceSelected)
@@ -284,22 +294,25 @@ namespace MultiPlayerDevTools
         
         public static void LaunchSelected()
         {
-            foreach (var instance in InstanceList)
+            var selectedInstances = InstanceList.Where(instance => instance.IsSelected && !instance.IsRunning && _isReadyToLaunch).ToArray();
+            
+            foreach (var instance in selectedInstances)
             {
-                if (!instance.IsSelected || instance.IsRunning || !_isReadyToLaunch) continue;
-                
-                instance.Launch();
-                WaitForLaunchToComplete();
+                AsyncLaunch(instance, selectedInstances.Length);
             }
         }
-
+        
         public void Terminate()
         {
             if(string.IsNullOrEmpty(_instanceDirectory) || 
                _instanceDirectory == Environment.CurrentDirectory ||
                !Directory.Exists(_instanceDirectory)) return;
-            
-            _process.Kill();
+
+            if (!_process.HasExited)
+            {
+                _process.Kill();
+            }
+
             Directory.Delete($"{_instanceDirectory}/Temp", true);
         }
         
@@ -340,31 +353,84 @@ namespace MultiPlayerDevTools
             }
         }
         
-        private static void WaitForLaunchToComplete()
+        private static async void AsyncLaunch(EditorInstance instance, int launchCount)
         {
-            var editorLogPath = "";
+            /**
+             * TODO: This method does not entirely work, as there are intermittent issues
+             * on launching higher number of editor instances
+             */
+            
+            Thread.Sleep(200 * launchCount);
+            
+            await Task.Run(() =>
+            {
+                Settings.IsEnabled = false;
+                
+                instance.Launch();
+                WaitForLaunchToComplete().Wait();
+                instance.FoldOut = true;
+                
+                Settings.IsEnabled = true;
+            });
+        }
+        
+        private static async Task WaitForLaunchToComplete()
+        {
+            string editorLogPath;
+            string editorPackageManifest;
+            
             var currentPlatform = Application.platform;
             var homeDirPath = currentPlatform == RuntimePlatform.OSXEditor || currentPlatform == RuntimePlatform.LinuxEditor
                 ? Environment.GetEnvironmentVariable("HOME")
                 : Environment.ExpandEnvironmentVariables("%HOMEDRIVE%%HOMEPATH%");
-
+            
             // ReSharper disable once SwitchStatementMissingSomeCases
             switch (currentPlatform)
             {
                 case RuntimePlatform.OSXEditor:
                     editorLogPath = $@"{homeDirPath}/Library/Logs/Unity/Editor.log";
+                    editorPackageManifest = $@"{homeDirPath}/Library/Unity/Packages/package.json";
                     break;
                 case RuntimePlatform.LinuxEditor:
                     editorLogPath = $@"{homeDirPath}/.config/unity3d/Editor.log";
+                    editorPackageManifest = $@"{homeDirPath}/.config/unity3d/Packages/package.json";
                     break;
                 case RuntimePlatform.WindowsEditor:
                     editorLogPath = $@"C:\{homeDirPath}\AppData\Local\Unity\Editor\Editor.log";
+                    editorPackageManifest = $@"C:\{homeDirPath}\AppData\Local\Unity\Packages\package.json";
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
             }
+
+            while (!IsFileReady(editorLogPath) || !IsFileReady(editorPackageManifest) || !IsUnityHubLaunched())
+            {
+//                ProgressValue++;
+                Debug.Log("file locked!");
+                await Task.Delay(0);
+            }
+
+            TerminateUnityHub();
+        }
+        
+        private static bool IsUnityHubLaunched()
+        {
+            _unityHubProcesses = Process.GetProcessesByName("Unity Hub").Concat(Process.GetProcessesByName("Unity Hub Helper")).ToArray();
             
-            while (!File.Exists(editorLogPath) || !IsFileReady(editorLogPath)) {}
+            return _unityHubProcesses.Length > 0;
+        }
+        
+        private static void TerminateUnityHub()
+        {
+            if (_unityHubProcesses.Length <= 0) return;
+            
+            foreach (var process in _unityHubProcesses)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill();
+                }
+            }
         }
         
         private static bool IsFileReady(string filename)
@@ -440,12 +506,12 @@ namespace MultiPlayerDevTools
             
             foreach (var setting in settings)
             {
-    //            var originalSettingsPath = $"{Environment.CurrentDirectory}/{setting}.{settingExtension}";
+//                var originalSettingsPath = $"{Environment.CurrentDirectory}/{setting}.{settingExtension}";
                 var instanceSettingsPath = $"{Environment.CurrentDirectory}/Library/EditorInstanceSettings_{editorInstance.Id}.{settingExtension}";
 
                 if (!onEnable)
                 {
-    //                File.Copy(originalSettingsPath, instanceSettingsPath);
+//                    File.Copy(originalSettingsPath, instanceSettingsPath);
                     File.Create(instanceSettingsPath).Dispose();
                 }
                 
@@ -464,15 +530,9 @@ namespace MultiPlayerDevTools
         
         private static Process ExecuteCommand(string command)
         {
-    //        var startInfo = new ProcessStartInfo(cmd, args)
-    //        {
-    //            UseShellExecute = true, 
-    //            RedirectStandardError = true
-    //        };
-
             try
             {
-                return Process.Start("/bin/bash", $"-c \"" + command + "\"");
+                return Process.Start("/bin/bash", $"-c \"{command}\"");
             }
             catch (Exception exc)
             {
@@ -480,13 +540,54 @@ namespace MultiPlayerDevTools
                 return null;
             }
         }
-
+        
         private void ExecuteCommand(string command, bool isNonStatic)
         {
             if (isNonStatic)
             {
                 _process = ExecuteCommand(command);
             }
+        }
+        
+        public static async Task<int> RunProcessAsync(string fileName, string arguments)
+        {
+            using (var process = new Process
+            {
+                StartInfo =
+                {
+                    FileName = fileName, 
+                    Arguments = $"-c \"{arguments}\"",
+                    UseShellExecute = false, 
+                    CreateNoWindow = true,
+                    RedirectStandardOutput = true, 
+                    RedirectStandardError = true
+                },
+                EnableRaisingEvents = true
+            })
+            {
+                return await RunProcessAsync(process).ConfigureAwait(false);
+            }
+        }
+        
+        private static Task<int> RunProcessAsync(Process process)
+        {
+            var tcs = new TaskCompletionSource<int>();
+
+            process.Exited += (s, ea) => tcs.SetResult(process.ExitCode);
+            process.OutputDataReceived += (s, ea) => Console.WriteLine(ea.Data);
+            process.ErrorDataReceived += (s, ea) => Console.WriteLine("ERR: " + ea.Data);
+
+            var started = process.Start();
+            
+            if (!started)
+            {
+                throw new InvalidOperationException("Could not start process: " + process);
+            }
+
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
+
+            return tcs.Task;
         }
     }
 }

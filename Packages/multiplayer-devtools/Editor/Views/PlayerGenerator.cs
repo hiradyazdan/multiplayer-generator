@@ -1,16 +1,22 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using MultiPlayerDevTools.Drawables;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
+using Button = MultiPlayerDevTools.Drawables.Button;
+using Debug = UnityEngine.Debug;
 using Menu = MultiPlayerDevTools.Drawables.Menu;
 
 namespace MultiPlayerDevTools.Views
 {
 	public class PlayerGenerator
 	{
+		public Action RepaintWindow { get; set; }
+		
 		private static string assetPath => Application.dataPath;
 		private static string _windowStatesFilePath;
 		
@@ -21,19 +27,22 @@ namespace MultiPlayerDevTools.Views
 	    private _BaseDrawable _drawable;
 
 	    private Vector2 _scrollPosition;
-	    
+	    private static float _currentProgressValue;
+
 	    public PlayerGenerator()
 	    {
 		    
 	    }
-
-	    public PlayerGenerator Render()
+	    
+	    public PlayerGenerator Render(Rect position)
 	    {
+		    _currentProgressValue = EditorInstance.ProgressValue;
+		    
 		    using (new EditorGUI.DisabledScope(!Settings.IsEnabled))
 		    {
 			    var instanceList = EditorInstance.InstanceList;
 			    var hasRunningInstance = instanceList != null && instanceList.Any(instance => instance.IsRunning);
-
+			    
 			    _BaseDrawable.StartRow();
 
 			    /**
@@ -47,7 +56,7 @@ namespace MultiPlayerDevTools.Views
 				    Dialog = EditorInstance.CreateConfirmDialog,
 	//			    BeforeFunction = SetUpCreateConfirmDialog,
 				    ActionWithArgs = EditorInstance.Create,
-				    ActionArgs = new object[] { (Func<Dictionary<string, string>>) SetUpCreateConfirmDialog, _projectName, instanceList?.Count ?? 0 }
+				    ActionArgs = new object[] { RepaintWindow, (Func<Dictionary<string, string>>) SetUpCreateConfirmDialog, _projectName, instanceList?.Count ?? 0 }
 			    }.Draw();
 			    
 			    _BaseDrawable.EndRow();
@@ -124,7 +133,23 @@ namespace MultiPlayerDevTools.Views
 			    EditorGUILayout.Space();
 		    }
 		    
+//		    RenderProgressBar(position);
+		    
 		    return this;
+	    }
+
+	    private void RenderProgressBar(Rect position)
+	    {
+		    var rect = GUILayoutUtility.GetRect(position.width, 20);
+		    
+		    if (EditorInstance.ProgressValue > _currentProgressValue)
+		    {
+			    _currentProgressValue = EditorInstance.ProgressValue;
+			    
+			    RepaintWindow?.Invoke();
+		    }
+		    
+		    EditorGUI.ProgressBar(rect, EditorInstance.ProgressValue, $"{EditorInstance.ProgressValue} %");
 	    }
 	    
 	    public void SetInstanceList()
@@ -133,7 +158,7 @@ namespace MultiPlayerDevTools.Views
 		    
 			for (var i = 0; i < EditorInstance.InstanceListCount; i++)
 		    {
-			    EditorInstance.Create(new object[] { _projectName, i, true });
+			    EditorInstance.Create(new object[] { RepaintWindow, _projectName, i, true });
 		    }
 	    }
 
@@ -326,8 +351,6 @@ namespace MultiPlayerDevTools.Views
 		    
 		    _BaseDrawable.StartColumn(foldoutStyle);
 		    
-	//	    _BaseDrawable.StartRow();
-		    
 		    var instanceSettings = instance.InstanceSettings;
 
 		    instanceSettings.BuildRemoteDeviceList();
@@ -344,8 +367,6 @@ namespace MultiPlayerDevTools.Views
 			    HelpBox = instance.Notifications.ContainsKey("Device") ? (_BaseDrawable.Notification?) instance.Notifications["Device"] : null
 		    }.Draw(true, true);
 		    
-	//	    _BaseDrawable.EndRow();
-
 		    _BaseDrawable.StartRow();
 		    
 		    /**
