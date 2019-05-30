@@ -1,14 +1,10 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using MultiPlayerDevTools.Drawables;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
-using Button = MultiPlayerDevTools.Drawables.Button;
-using Debug = UnityEngine.Debug;
 using Menu = MultiPlayerDevTools.Drawables.Menu;
 
 namespace MultiPlayerDevTools.Views

@@ -6,7 +6,6 @@ using MultiPlayerDevTools.Drawables;
 using MultiPlayerDevTools.Views;
 using UnityEditor;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace MultiPlayerDevTools
 {
@@ -27,34 +26,27 @@ namespace MultiPlayerDevTools
 		private int _selectedDeviceIndex;
 		
 		private const string SymLinkedFlag = ".__symLinked__";
-	    
-	    static DevToolsWindow()
+		
+		private static readonly string CurrentDirPath;
+
+		static DevToolsWindow()
 	    {
-		    var loadedInstanceDirPath = Environment.CurrentDirectory;
+		    CurrentDirPath = Environment.CurrentDirectory;
 		    
-		    if(!File.Exists($"{loadedInstanceDirPath}/{SymLinkedFlag}")) return;
-		    
-		    var projectCloneDirPath = Directory.GetParent(loadedInstanceDirPath).FullName;
-		    var instanceDirectories = new DirectoryInfo(projectCloneDirPath).EnumerateDirectories();
-		    
-		    foreach (var instanceDirectory in instanceDirectories)
+		    var isMasterEditor = !File.Exists($"{CurrentDirPath}/{SymLinkedFlag}");
+
+		    if (!isMasterEditor)
 		    {
-			    if (instanceDirectory.FullName != loadedInstanceDirPath) continue;
-			    
-			    var instanceId = int.Parse(instanceDirectory.Name.Split('_').Last());
-			    
-			    var editorInstanceSettings = new EditorInstanceSettings(instanceId);
-			    
-			    EditorSettings.unityRemoteDevice = editorInstanceSettings.UnityRemoteDevice;
+			    SetEditorRemoteDevice();
 		    }
 	    }
-	    
-	    public DevToolsWindow()
+		
+		public DevToolsWindow()
 	    {
 		    titleContent = new GUIContent("MP DevTools");
 	    }
-	    
-	    [MenuItem ("Window/Multi-player DevTools %#d")]
+		
+		[MenuItem ("Window/Multi-player DevTools %#d")]
 	    private static void Init()
 	    {
 		    GetWindow(typeof(DevToolsWindow));
@@ -66,16 +58,6 @@ namespace MultiPlayerDevTools
 		    var isSymLinked = new DirectoryInfo(Directory.GetCurrentDirectory())
 															   .EnumerateFiles(SymLinkedFlag)
 															   .Any();
-		    
-		    return !isSymLinked;
-	    }
-	    
-	    [MenuItem("Edit/Project Settings", true)]
-	    private static bool ToggleProjectSettingsMenu()
-	    {
-		    var isSymLinked = new DirectoryInfo(Directory.GetCurrentDirectory())
-			    .EnumerateFiles(SymLinkedFlag)
-			    .Any();
 		    
 		    return !isSymLinked;
 	    }
@@ -138,6 +120,24 @@ namespace MultiPlayerDevTools
 		    if (GUI.changed)
 		    {
 			    EditorUtility.SetDirty(this);
+		    }
+	    }
+	    
+	    private static void SetEditorRemoteDevice()
+	    {
+		    var projectCloneDirPath = Directory.GetParent(CurrentDirPath).FullName;
+		    var instanceDirectories = new DirectoryInfo(projectCloneDirPath).EnumerateDirectories();
+		    
+		    foreach (var instanceDirectory in instanceDirectories)
+		    {
+			    if (instanceDirectory.FullName != CurrentDirPath) continue;
+			    
+			    var instanceId = int.Parse(instanceDirectory.Name.Split('_').Last());
+			    
+			    var editorInstanceSettings = new EditorInstanceSettings(instanceId);
+			    
+			    EditorSettings.unityRemoteDevice = editorInstanceSettings.UnityRemoteDevice;
+			    EditorSettings.unityRemoteResolution = "Normal";
 		    }
 	    }
 	}

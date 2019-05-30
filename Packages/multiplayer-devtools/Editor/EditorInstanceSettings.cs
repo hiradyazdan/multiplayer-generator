@@ -5,7 +5,6 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using MultiPlayerDevTools.Drawables;
 using UnityEditor.Hardware;
-using Menu = MultiPlayerDevTools.Drawables.Menu;
 
 namespace MultiPlayerDevTools
 {
@@ -194,8 +193,6 @@ namespace MultiPlayerDevTools
                         _instanceRemoteDeviceList.ContainsKey(instanceId) &&
                         _instanceRemoteDeviceList[instanceId] == _remoteDeviceList[i].id)
                     {
-//                        RemoteDevicePopupList[i].Disabled = true;
-
                         return i;
                     }
                 }

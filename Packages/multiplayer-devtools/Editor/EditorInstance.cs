@@ -9,7 +9,6 @@ using MultiPlayerDevTools.Drawables;
 using MultiPlayerDevTools.Views;
 using UnityEditor;
 using UnityEngine;
-using UnityEngine.UIElements;
 using Debug = UnityEngine.Debug;
 
 namespace MultiPlayerDevTools
@@ -115,8 +114,7 @@ namespace MultiPlayerDevTools
         public static float ProgressValue { get; set; }
         
         private GUIStyle _buttonStyle;
-        
-        private const string SymLinkedFlagFile = ".__symLinked__";
+
         private readonly string _instanceDirectory;
 
         private static Dictionary<string, string> _instanceSettingsPaths;
@@ -308,7 +306,7 @@ namespace MultiPlayerDevTools
                _instanceDirectory == Environment.CurrentDirectory ||
                !Directory.Exists(_instanceDirectory)) return;
 
-            if (!_process.HasExited)
+            if (_process != null && !_process.HasExited)
             {
                 _process.Kill();
             }
@@ -358,6 +356,7 @@ namespace MultiPlayerDevTools
             /**
              * TODO: This method does not entirely work, as there are intermittent issues
              * on launching higher number of editor instances
+             * unity hub still appears intermittently
              */
             
             Thread.Sleep(200 * launchCount);
@@ -426,7 +425,7 @@ namespace MultiPlayerDevTools
             
             foreach (var process in _unityHubProcesses)
             {
-                if (!process.HasExited)
+                if (process != null && !process.HasExited)
                 {
                     process.Kill();
                 }
@@ -474,15 +473,16 @@ namespace MultiPlayerDevTools
 
         private static void CreateFiles(EditorInstance editorInstance)
         {
+            const string symLinkedFlagFile = ".__symLinked__";
             var instanceProperties = new[]
             {
-                SymLinkedFlagFile, "*.csproj",
+                symLinkedFlagFile, "*.csproj",
                 "Assets", "Library", "Logs", "Packages", "ProjectSettings"
             };
 
             foreach (var property in instanceProperties)
             {
-                if (property == SymLinkedFlagFile)
+                if (property == symLinkedFlagFile)
                 {
                     File.Create($"{editorInstance._instanceDirectory}/{property}").Dispose();
                 }
