@@ -337,7 +337,7 @@ namespace MultiPlayerDevTools
             {
                 LaunchBtnText = "Terminate";
                 LaunchBtnColor = new Color(1f, 0.57f, 0f);
-
+                
                 RemoveBtnText = "Remove";
                 RemoveBtnColor = Color.red;
             }
@@ -345,7 +345,7 @@ namespace MultiPlayerDevTools
             {
                 LaunchBtnText = "Launch";
                 LaunchBtnColor = Color.white;
-
+                
                 RemoveBtnText = "Remove";
                 RemoveBtnColor = Color.yellow;
             }
@@ -488,11 +488,19 @@ namespace MultiPlayerDevTools
                 }
                 else
                 {
+                    if(!HasProperty(Environment.CurrentDirectory, property)) continue;
+                    
                     var command = $"ln -s {Environment.CurrentDirectory}/{property} {editorInstance._instanceDirectory}";
                         
                     ExecuteCommand(command);
                 }
             }
+        }
+
+        private static bool HasProperty(string containerPath, string property)
+        {
+            return Directory.EnumerateFiles(containerPath, property).Any() || 
+                   Directory.Exists(property);
         }
 
         private static void CreateSettings(EditorInstance editorInstance, bool onEnable = false)

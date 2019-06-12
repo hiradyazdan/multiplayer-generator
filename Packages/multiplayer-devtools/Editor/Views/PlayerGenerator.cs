@@ -13,7 +13,7 @@ namespace MultiPlayerDevTools.Views
 	{
 		public Action RepaintWindow { get; set; }
 		
-		private static string assetPath => Application.dataPath;
+		private static string AssetPath => Application.dataPath;
 		private static string _windowStatesFilePath;
 		
 		private string _projectName;
@@ -112,7 +112,7 @@ namespace MultiPlayerDevTools.Views
 			    RenderInstanceListHeader(instanceList, instanceList == null || instanceList.Count == 0 || hasRunningInstance);
 			    
 			    var instances = instanceList?.OrderBy(instance => instance.Id).ToList();
-
+			    
 			    if(instances == null) return this;
 			    
 			    _scrollPosition = GUILayout.BeginScrollView(_scrollPosition);
@@ -169,7 +169,7 @@ namespace MultiPlayerDevTools.Views
 	    {
 		    char[] charsToTrim = {'/'};
 		    
-		    var assetPathArr = assetPath.Split('/');
+		    var assetPathArr = AssetPath.Split('/');
 		    var projectCloneDirPath = EditorInstance.ProjectCloneDirectory;
 		    var editorDirPath = AppDomain.CurrentDomain.BaseDirectory;
 

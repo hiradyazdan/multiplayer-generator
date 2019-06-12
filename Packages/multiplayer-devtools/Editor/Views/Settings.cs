@@ -74,7 +74,7 @@ namespace MultiPlayerDevTools.Views
 //	    Debug.Log("currentScript: " + currentScript);
 //	    Debug.Log("scriptPath: " + scriptPath);
 	    
-            _windowStatesFilePath = $"{assetPath}/Plugins/multiplayer-devtools/Editor/.settings";
+            _windowStatesFilePath = $"{assetPath}/Plugins/MultiplayerDevtools/Editor/.settings";
 	    
             if (!File.Exists(_windowStatesFilePath)) return;
 	    

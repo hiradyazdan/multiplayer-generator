@@ -2,10 +2,12 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
-using MultiPlayerDevTools.Drawables;
-using MultiPlayerDevTools.Views;
+
 using UnityEditor;
 using UnityEngine;
+
+using MultiPlayerDevTools.Drawables;
+using MultiPlayerDevTools.Views;
 
 namespace MultiPlayerDevTools
 {
@@ -19,6 +21,10 @@ namespace MultiPlayerDevTools
 	[InitializeOnLoad]
 	public class DevToolsWindow : EditorWindow
 	{
+		private static bool IsSymLinked => Directory
+			.EnumerateFiles(Directory.GetCurrentDirectory(), SymLinkedFlag)
+			.Any();
+		
 		private Tabs _tab;
 		private Settings _settings;
 		private PlayerGenerator _playerGenerator;
@@ -27,43 +33,36 @@ namespace MultiPlayerDevTools
 		
 		private const string SymLinkedFlag = ".__symLinked__";
 		
-		private static readonly string CurrentDirPath;
+		private static string currentDirPath;
 
 		static DevToolsWindow()
-	    {
-		    CurrentDirPath = Environment.CurrentDirectory;
-		    
-		    var isMasterEditor = !File.Exists($"{CurrentDirPath}/{SymLinkedFlag}");
-
-		    if (!isMasterEditor)
-		    {
-			    SetEditorRemoteDevice();
-		    }
-	    }
-		
-		public DevToolsWindow()
-	    {
-		    titleContent = new GUIContent("MP DevTools");
-	    }
+		{
+			try
+			{
+				SetEditorRemoteDevice();
+			}
+			catch (UnityException)
+			{}
+		}
 		
 		[MenuItem ("Window/Multi-player DevTools %#d")]
 	    private static void Init()
 	    {
-		    GetWindow(typeof(DevToolsWindow));
+		    var inspectorWindow = typeof(Editor).Assembly.GetType("UnityEditor.InspectorWindow");
+		    
+		    GetWindow<DevToolsWindow>("MP DevTools", true, inspectorWindow);
 	    }
 	    
 	    [MenuItem("Window/Multi-player DevTools %#d", true)]
 	    private static bool ToggleMenu()
 	    {
-		    var isSymLinked = new DirectoryInfo(Directory.GetCurrentDirectory())
-															   .EnumerateFiles(SymLinkedFlag)
-															   .Any();
-		    
-		    return !isSymLinked;
+		    return !IsSymLinked;
 	    }
 	    
 	    private void OnEnable()
 	    {
+		    if(IsSymLinked) return;
+		    
 		    try
 		    {
 			    _settings = new Settings();
@@ -83,12 +82,16 @@ namespace MultiPlayerDevTools
 
 	    private void OnDisable()
 	    {
+		    if(IsSymLinked) return;
+		    
 		    Settings.SaveStates();
 		    EditorInstance.Reset();
 	    }
 	    
 	    private void OnGUI()
 	    {
+		    if(IsSymLinked) return;
+		    
 		    var editorTabNames = Enum.GetValues(typeof(Tabs))
 			    .Cast<Tabs>()
 			    .Select(tab => Regex.Replace($"{tab}", "([A-Z])", " $1", RegexOptions.Compiled).Trim())
@@ -125,12 +128,18 @@ namespace MultiPlayerDevTools
 	    
 	    private static void SetEditorRemoteDevice()
 	    {
-		    var projectCloneDirPath = Directory.GetParent(CurrentDirPath).FullName;
+		    currentDirPath = Environment.CurrentDirectory;
+		    
+		    var isMasterEditor = !File.Exists($"{currentDirPath}/{SymLinkedFlag}");
+
+		    if (isMasterEditor) return;
+
+		    var projectCloneDirPath = Directory.GetParent(currentDirPath).FullName;
 		    var instanceDirectories = new DirectoryInfo(projectCloneDirPath).EnumerateDirectories();
 		    
 		    foreach (var instanceDirectory in instanceDirectories)
 		    {
-			    if (instanceDirectory.FullName != CurrentDirPath) continue;
+			    if (instanceDirectory.FullName != currentDirPath) continue;
 			    
 			    var instanceId = int.Parse(instanceDirectory.Name.Split('_').Last());
 			    
