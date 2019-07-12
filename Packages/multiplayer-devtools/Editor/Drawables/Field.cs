@@ -1,4 +1,5 @@
 using System;
+
 using UnityEditor;
 using UnityEngine;
 
@@ -23,7 +24,6 @@ namespace MultiPlayerDevTools.Drawables
         }
 
         public FieldTypes FieldType { private get; set; }
-        public string Label { get; set; }
         public Color? FieldColor { get; set; }
         public string Value { get; set; }
         public ToggleModes ToggleMode { get; set; }
@@ -38,16 +38,11 @@ namespace MultiPlayerDevTools.Drawables
 
         public Field Draw(bool hasSeparator = true, bool toggleable = false)
         {
-            if (hasSeparator)
-            {
-                Separator();
-            }
-            
-            if (toggleable)
-            {
-                EditorGUI.BeginDisabledGroup(Disabled);
-            }
+            if (hasSeparator) Separator();
+            if (toggleable) EditorGUI.BeginDisabledGroup(Disabled);
 
+            SetControlName();
+            
             GUI.backgroundColor = FieldColor ?? Color.white;
             switch (FieldType)
             {
@@ -56,6 +51,13 @@ namespace MultiPlayerDevTools.Drawables
                     break;
                 case FieldTypes.Text:
                     Value = EditorGUILayout.TextField(Label, Value);
+
+                    if (ActionWithArgs != null && ActionArgs == null)
+                    {
+                        ActionArgs = new object[] { Value };
+                    }
+
+                    InvokeMethod();
                     break;
                 case FieldTypes.Int:
                     break;
@@ -83,16 +85,10 @@ namespace MultiPlayerDevTools.Drawables
                     throw new ArgumentOutOfRangeException(nameof(FieldType), FieldType, null);
             }
             
-            if (toggleable)
-            {
-                EditorGUI.EndDisabledGroup();
-            }
-
-            if (hasSeparator)
-            {
-                Separator();
-            }
-
+            if (HelpBox?.Content != null) EditorGUILayout.HelpBox(HelpBox.Value.Content, HelpBox.Value.ContentTypes, false);
+            if (toggleable) EditorGUI.EndDisabledGroup();
+            if (hasSeparator) Separator();
+            
             return this;
         }
         

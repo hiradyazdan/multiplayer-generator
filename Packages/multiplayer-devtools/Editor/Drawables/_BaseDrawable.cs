@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 
 namespace MultiPlayerDevTools.Drawables
@@ -27,6 +27,9 @@ namespace MultiPlayerDevTools.Drawables
             }
         }
         
+        public int ControlId { get; set; }
+        public string Label { get; set; }
+        
         public Notification? HelpBox { get; set; }
         
         public bool Disabled { protected get; set; }
@@ -47,9 +50,7 @@ namespace MultiPlayerDevTools.Drawables
         public object[] FunctionArgs { get; set; }
         
         protected _BaseDrawable()
-        {
-            
-        }
+        {}
         
         public static void StartRow(GUIStyle style = null)
         {
@@ -102,6 +103,13 @@ namespace MultiPlayerDevTools.Drawables
         public static void Separator()
         {
             EditorGUILayout.Separator();
+        }
+
+        protected void SetControlName()
+        {
+            var controlName = Regex.Replace(Label, @"\s+", "");
+            
+            GUI.SetNextControlName($"{ControlId}:{controlName}");
         }
         
         protected void InvokeMethod()

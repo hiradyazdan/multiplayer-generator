@@ -34,12 +34,12 @@ namespace MultiPlayerDevTools
 		private const string SymLinkedFlag = ".__symLinked__";
 		
 		private static string currentDirPath;
-
+		
 		static DevToolsWindow()
 		{
 			try
 			{
-				SetEditorRemoteDevice();
+				SetEditorInstanceSettings();
 			}
 			catch (UnityException)
 			{}
@@ -61,7 +61,11 @@ namespace MultiPlayerDevTools
 	    
 	    private void OnEnable()
 	    {
-		    if(IsSymLinked) return;
+		    if (IsSymLinked)
+		    {
+			    Close();
+			    return;
+		    }
 		    
 		    try
 		    {
@@ -105,7 +109,7 @@ namespace MultiPlayerDevTools
 		    
 		    EditorGUILayout.Space();
 		    EditorGUILayout.Space();
-
+		    
 		    switch (_tab) 
 		    {
 			    case Tabs.PlayerGenerator:
@@ -126,14 +130,14 @@ namespace MultiPlayerDevTools
 		    }
 	    }
 	    
-	    private static void SetEditorRemoteDevice()
+	    private static void SetEditorInstanceSettings()
 	    {
 		    currentDirPath = Environment.CurrentDirectory;
 		    
 		    var isMasterEditor = !File.Exists($"{currentDirPath}/{SymLinkedFlag}");
-
+		    
 		    if (isMasterEditor) return;
-
+		    
 		    var projectCloneDirPath = Directory.GetParent(currentDirPath).FullName;
 		    var instanceDirectories = new DirectoryInfo(projectCloneDirPath).EnumerateDirectories();
 		    
@@ -147,6 +151,8 @@ namespace MultiPlayerDevTools
 			    
 			    EditorSettings.unityRemoteDevice = editorInstanceSettings.UnityRemoteDevice;
 			    EditorSettings.unityRemoteResolution = "Normal";
+			    
+			    Social.localUser.SetInstanceField("m_ID", editorInstanceSettings.SocialId);
 		    }
 	    }
 	}

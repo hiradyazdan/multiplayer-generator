@@ -1,4 +1,5 @@
 using System;
+
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
@@ -29,18 +30,18 @@ namespace MultiPlayerDevTools.Drawables
         }
         
         public MenuTypes MenuType { private get; set; }
-        public int MenuId { get; set; }
-        public string Label { get; set; }
         public Color? MenuColor { get; set; }
         public PopupElement[] MenuList { get; set; }
         public int SelectedItemIndex { get; set; }
         public GenericMenu.MenuFunction2 MenuAction { get; set; }
-
+        
         public Menu Draw(bool hasSeparator = true, bool toggleable = false)
         {
             if (hasSeparator) Separator();
             if (toggleable) EditorGUI.BeginDisabledGroup(Disabled);
-
+            
+            SetControlName();
+            
             var selectedItem = MenuList[SelectedItemIndex];
             
             GUI.backgroundColor = MenuColor ?? Color.white;
@@ -62,8 +63,6 @@ namespace MultiPlayerDevTools.Drawables
 
         private void RenderDropDownMenu(PopupElement selectedItem)
         {
-            GUI.SetNextControlName($"{MenuId}:{Label}");
-            
             var content = new GUIContent(selectedItem.Content);
             var popupRect = GUILayoutUtility.GetRect(content, EditorStyles.popup);
                     

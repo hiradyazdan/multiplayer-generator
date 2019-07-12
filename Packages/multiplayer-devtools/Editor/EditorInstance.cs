@@ -243,17 +243,37 @@ namespace MultiPlayerDevTools
 
             Notifications.Clear();
 
-            if (InstanceSettings.HasDeviceSelected) return;
+            if (InstanceSettings.HasDeviceSelected && InstanceSettings.HasSocialId) return;
             
             FoldOut = true;
             _isReadyToLaunch = false;
 
-            Notifications["Device"] = new _BaseDrawable.Notification(
-                $"Remote device not selected!", 
-                MessageType.Error
-            );
+            if (!InstanceSettings.HasDeviceSelected)
+            {
+                Notifications["Device"] = new _BaseDrawable.Notification(
+                    $"Remote device not selected!", 
+                    MessageType.Error
+                );
+            }
 
-            GUI.FocusControl($"{Id}:Device");
+            if (!InstanceSettings.HasSocialId)
+            {
+                Notifications["SocialId"] = new _BaseDrawable.Notification(
+                    $"Social Id not specified!", 
+                    MessageType.Error
+                );
+            }
+
+            if (!InstanceSettings.HasDeviceSelected)
+            {
+                GUI.FocusControl($"{Id}:Device");
+            }
+            
+            if (InstanceSettings.HasDeviceSelected && 
+                !InstanceSettings.HasSocialId)
+            {
+                GUI.FocusControl($"{Id}:SocialId");
+            }
         }
         
         public static void ValidateMultipleLaunches()
@@ -265,7 +285,11 @@ namespace MultiPlayerDevTools
 
                 instance.Notifications.Clear();
 
-                if (instance.IsSelected && !instance.InstanceSettings.HasDeviceSelected)
+                if (instance.IsSelected && (
+                        !instance.InstanceSettings.HasDeviceSelected || 
+                        !instance.InstanceSettings.HasSocialId
+                        )
+                    )
                 {
                     return instance;
                 }
@@ -277,15 +301,35 @@ namespace MultiPlayerDevTools
             {
                 instance.FoldOut = true;
                 _isReadyToLaunch = false;
-                
-                instance.Notifications["Device"] = new _BaseDrawable.Notification(
-                    $"Remote device not selected!", 
-                    MessageType.Error
-                );
 
+                if (!instance.InstanceSettings.HasDeviceSelected)
+                {
+                    instance.Notifications["Device"] = new _BaseDrawable.Notification(
+                        $"Remote device not selected!", 
+                        MessageType.Error
+                    );
+                }
+
+                if (!instance.InstanceSettings.HasSocialId)
+                {
+                    instance.Notifications["SocialId"] = new _BaseDrawable.Notification(
+                        $"Social Id not specified!", 
+                        MessageType.Error
+                    );
+                }
+                
                 if (instance == nonlaunchableInstances[0])
                 {
-                    GUI.FocusControl($"{instance.Id}:Device");
+                    if (!instance.InstanceSettings.HasDeviceSelected)
+                    {
+                        GUI.FocusControl($"{instance.Id}:Device");
+                    }
+
+                    if (instance.InstanceSettings.HasDeviceSelected && 
+                        !instance.InstanceSettings.HasSocialId)
+                    {
+                        GUI.FocusControl($"{instance.Id}:SocialId");
+                    }
                 }
             }
         }

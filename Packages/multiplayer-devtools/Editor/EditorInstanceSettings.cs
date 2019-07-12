@@ -5,6 +5,7 @@ using System.Runtime.Serialization.Formatters.Binary;
 using System.Threading.Tasks;
 using MultiPlayerDevTools.Drawables;
 using UnityEditor.Hardware;
+using UnityEngine;
 
 namespace MultiPlayerDevTools
 {
@@ -12,26 +13,36 @@ namespace MultiPlayerDevTools
     {
         public Menu.PopupElement[] RemoteDevicePopupList { get; private set; }
         public bool HasDeviceSelected => UnityRemoteDevice != "None";
+        public bool HasSocialId => SocialId != "";
 
         public string UnityRemoteDevice
         {
             get {
                 Load();
+                
+                return _instanceRemoteDeviceList != null && 
+                       _instanceRemoteDeviceList.ContainsKey(_instanceId) 
+                    ? _instanceRemoteDeviceList[_instanceId]
+                    : "None";
+            }
+        }
 
-                if (_instanceRemoteDeviceList != null && 
-                    _instanceRemoteDeviceList.ContainsKey(_instanceId))
-                {
-                    return _instanceRemoteDeviceList[_instanceId];
-                }
-                else
-                {
-                    return "None";
-                }
+        public string SocialId
+        {
+            get
+            {
+                Load();
+                
+                return _instanceSocialId != null && 
+                       _instanceSocialId.ContainsKey(_instanceId) 
+                    ? _instanceSocialId[_instanceId]
+                    : "";
             }
         }
 
         private readonly int _instanceId;
         private readonly Dictionary<int, string> _instanceRemoteDeviceList;
+        private readonly Dictionary<int, string> _instanceSocialId;
         private readonly string _settingsPath;
     //    private SerializedObject _settings;
     //    private SerializedProperty _unityRemoteDevice;
@@ -46,6 +57,7 @@ namespace MultiPlayerDevTools
             _instanceId = instanceId;
             _notifications = notifications;
             _instanceRemoteDeviceList = new Dictionary<int, string>();
+            _instanceSocialId = new Dictionary<int, string>();
             _settingsPath = $"Library/EditorInstanceSettings_{_instanceId}.asset";
         }
         
@@ -72,6 +84,10 @@ namespace MultiPlayerDevTools
                     case "UnityRemoteDevice":
                         _instanceRemoteDeviceList[_instanceId] = setting.Value;
                         break;
+                    
+                    case "SocialId":
+                        _instanceSocialId[_instanceId] = setting.Value;
+                        break;
 			        
                     default:
                         throw new ArgumentOutOfRangeException(nameof(setting.Key), setting.Key, null);
@@ -81,15 +97,18 @@ namespace MultiPlayerDevTools
         
         private void Save(bool async = false)
         {
-            if(!_instanceRemoteDeviceList.ContainsKey(_instanceId)) return;
-
             var settings = new Dictionary<string, string>
             {
-                {"UnityRemoteDevice", $"{_instanceRemoteDeviceList[_instanceId]}"}
+                ["UnityRemoteDevice"] = _instanceRemoteDeviceList.ContainsKey(_instanceId)
+                    ? $"{_instanceRemoteDeviceList[_instanceId]}"
+                    : null,
+                ["SocialId"] = _instanceSocialId.ContainsKey(_instanceId) 
+                    ? $"{_instanceSocialId[_instanceId]}" 
+                    : null
             };
             
             var serializedStates = SerializeStates(settings);
-
+            
             if (async)
             {
                 SaveAsync(_settingsPath, serializedStates).Wait();
@@ -165,7 +184,23 @@ namespace MultiPlayerDevTools
     //        EditorUtility.SetDirty(_settings.targetObject);
         }
 
-        public int GetIndexById(int instanceId, int defaultIndex = 0)
+        public void SetSocialId(object[] data)
+        {
+            _instanceSocialId[_instanceId] = (string) data[0];
+            
+            const string notificationKey = "SocialId";
+
+            if (_instanceSocialId[_instanceId] != "" && _notifications.ContainsKey(notificationKey))
+            {
+                _notifications.Remove(notificationKey);
+            }
+
+            _selectedInstanceId = _instanceId;
+            
+            Save();
+        }
+        
+        public int GetDeviceIndex(int instanceId, int defaultIndex = 0)
         {
             if (instanceId == _selectedInstanceId)
             {
@@ -213,7 +248,7 @@ namespace MultiPlayerDevTools
 
             return defaultIndex;
         }
-
+        
         public void BuildRemoteDeviceList()
         {
             var devices = new List<DevDevice>();

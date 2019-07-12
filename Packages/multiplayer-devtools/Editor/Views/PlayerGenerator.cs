@@ -15,11 +15,12 @@ namespace MultiPlayerDevTools.Views
 		
 		private static string AssetPath => Application.dataPath;
 		private static string _windowStatesFilePath;
+		private static string _deviceSocialId;
 		
 		private string _projectName;
-
-	    private int _selectedDeviceIndex;
-
+		
+		private int _selectedDeviceIndex;
+	    
 	    private _BaseDrawable _drawable;
 
 	    private Vector2 _scrollPosition;
@@ -354,14 +355,25 @@ namespace MultiPlayerDevTools.Views
 		    new Menu
 		    {
 			    MenuType = Menu.MenuTypes.DropDown,
+			    ControlId = instance.Id,
 			    Label = "Device",
-			    MenuId = instance.Id,
 			    Disabled = instance.IsRunning,
 			    MenuList = instanceSettings.RemoteDevicePopupList,
 			    MenuAction = instanceSettings.SetUnityRemoteDevice,
-			    SelectedItemIndex = instanceSettings.GetIndexById(instance.Id),
+			    SelectedItemIndex = instanceSettings.GetDeviceIndex(instance.Id),
 			    HelpBox = instance.Notifications.ContainsKey("Device") ? (_BaseDrawable.Notification?) instance.Notifications["Device"] : null
 		    }.Draw(true, true);
+
+		    new Field
+		    {
+			    FieldType = Field.FieldTypes.Text,
+			    ControlId = instance.Id,
+			    Label = "Social Id",
+			    Value = instanceSettings.SocialId,
+			    Disabled = instance.IsRunning,
+			    ActionWithArgs = instanceSettings.SetSocialId,
+			    HelpBox = instance.Notifications.ContainsKey("SocialId") ? (_BaseDrawable.Notification?) instance.Notifications["SocialId"] : null
+		    }.Draw(false, true);
 		    
 		    _BaseDrawable.StartRow();
 		    
